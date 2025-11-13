@@ -1,27 +1,55 @@
-# Google-Analytics-Capstone-Project
-## Cyclistic Bike-Share Case Study
+# GOOGLE ANALYTICS CAPSTONE PROJECT
+# 🌙 Cyclistic Bike-Share Case Study
 
-This repository contains the full analysis and final report for the **Google Data Analytics Capstone Project: Cyclistic Bike-Share Case Study**. The goal of this project is to identify key behavioral differences between **casual riders** and **annual members**, and to propose data-driven strategies to increase annual memberships.
+<p align="center">
+  <img src="assets/banner.png" width="75%" alt="Cyclistic Banner"/>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Language-R-blue"/>
+  <img src="https://img.shields.io/badge/Project-Complete-brightgreen"/>
+  <img src="https://img.shields.io/github/last-commit/Shrabana1505/Google-Analytics-Capstone-Project"/>
+</p>
 
 ---
 
-## 📌 Project Overview
+## 🔍 Overview
 
-Cyclistic, a Chicago-based bike-share company, wants to convert more casual riders into annual members. This analysis explores ride patterns, seasonal trends, station usage, ride duration, and temporal behavior using Divvy’s public Q1 2019 and Q1 2020 datasets.
+AN end‑to‑end analysis of how **casual riders** and **annual members** differ in their usage of Cyclistic’s bike‑share service. This is the official capstone submission for the **Google Data Analytics Certificate**, using real Divvy public datasets to derive strategic membership insights.
 
-The repository includes:
+---
 
-* The **official case study brief (PDF)** outlining the business problem and objectives
-* A **professional final report** (HTML + PDF)
-* A **detailed analysis notebook** documenting the full workflow
-* All supporting files for reproducibility ( LaTeX preamble)
+## 🌐 Live Reports
+
+<p align="center">
+  <a href="report/Report.html">📘 <b>View HTML Report</b></a><br>
+  <a href="report/Report.pdf">📄 <b>Download PDF Report</b></a>
+</p>
+
+---
+
+## 📊 Key Insights
+
+* Casual riders take significantly **longer** trips.
+* Members show clear **weekday commute peaks**.
+* Casual ridership **surges in summer**.
+* Members start near business/transit hubs; casual riders near **tourist zones**.
+* Casual riders take more **round trips**, signaling leisure usage.
+
+---
+
+## 🎯 Recommendations
+
+* Launch targeted **spring–summer membership campaigns**.
+* Run **public transport ads** in high‑activity corridors.
+* Offer **extended ride-time perks** to attract long-ride casual users.
 
 ---
 
 ## 📁 Repository Structure
 
 ```
-cyclistic-case-study/
+Google-Analytics-Capstone-Project/
 │
 ├── case-study/
 │   └── Cyclistic_Case_Study_Brief.pdf
@@ -29,7 +57,7 @@ cyclistic-case-study/
 ├── report/
 │   ├── Report.Rmd
 │   ├── Report.html
-│   ├── Report.pdf
+│   └── Report.pdf
 │
 ├── notebook/
 │   └── cyclistic_notebook.Rmd
@@ -38,92 +66,34 @@ cyclistic-case-study/
 │   └── preamble.tex
 │
 └── README.md
+```
 
 ---
 
-## 🧠 Key Findings
+## 🛠️ Tools & Skills
 
-* **Casual riders take longer rides**, especially on weekends.
-* **Members ride during weekday peak hours**, reflecting commute behavior.
-* **Casual usage surges in warmer months**, while member usage is stable year-round.
-* **Casual riders start near tourist/scenic locations**; members start near business and transit hubs.
-* **Round trips** are more common for casual riders, while members take point-to-point commuter trips.
-
----
-
-## 🎯 Recommendations
-
-1. **Seasonal Membership Campaign (Late April–July)**
-
-   * Promote leisure-focused perks like ride discounts and scenic-station benefits.
-
-2. **Public Transport Advertising (May–September)**
-
-   * Display QR-code based ads inside buses, trains, and metro stations near tourist zones.
-
-3. **Extra Ride-Time Benefits for Annual Members**
-
-   * Offer bonus ride minutes or extended ride duration to attract long-ride casual users.
-
----
-
-## 📊 Tools & Skills Demonstrated
-
-* **R Programming** (tidyverse, ggplot2, lubridate, janitor, skimr)
-* **Data Cleaning & Wrangling**
-* **Exploratory Data Analysis (EDA)**
-* **Feature Engineering**
-* **Data Visualization**
-* **Report Writing (RMarkdown, HTML, PDF)**
-* **Analytical Storytelling**
-
----
-
-## 🌐 View the Report Online
-
-
-```
-[https://Shrabana1505.github.io/cyclistic-case-study/Report.html](https://Shrabana1505.github.io/Google-Analytics-Capstone-Project/report/Report.html
-)
-```
-
-## 🌐 View the Notebook Online
-
-
-```
-[https://Shrabana1505.github.io/cyclistic-case-study/notebook.html](https://Shrabana1505.github.io/Google-Analytics-Capstone-Project/notebook/notebook.html
-)
-```
-
+* **R** (tidyverse, ggplot2, lubridate, janitor)
+* Data Cleaning, Wrangling & EDA
+* Feature Engineering
+* Visualization & Interpretation
+* RMarkdown (HTML + PDF)
+* Analytical Storytelling
 
 ---
 
 ## 📎 Data Source
 
-Divvy Public Data (2019–2020)
-Provided by Motivate International Inc.
-License information: [https://www.divvybikes.com/data](https://www.divvybikes.com/data)
-
-> Note: Cyclistic is a fictional company; Divvy datasets are used for educational analysis.
+Divvy Public Data (by Motivate International Inc.)
+Cyclistic is fictional; Divvy data is used for analysis.
 
 ---
 
 ## 👩‍💻 Author
 
-**Shrabana Nandi**
-Google Data Analytics Professional Certificate
+**Shrabana Nandi** — Google Data Analytics Professional Certificate
 13.11.2025
 ---
 
-## 🔄 Reproducibility
-
-To reproduce results:
-
-1. Open the RMarkdown notebook.
-2. Ensure all libraries are installed (`tidyverse`, `lubridate`, etc.).
-3. Knit the report to HTML or PDF.
-
----
-
-
-
+<p align="center">
+  <img src="https://img.shields.io/github/languages/top/Shrabana1505/Google-Analytics-Capstone-Project"/>
+</p>

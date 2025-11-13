@@ -1,0 +1,34 @@
+\usepackage{geometry}
+\geometry{margin=1in}
+
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+
+\usepackage{titlesec}
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{blue!60!black}}
+  {\thesection}{1em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{blue!50!black}}
+  {\thesubsection}{1em}{}
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Cyclistic Bike-Share Analysis}
+\lhead{Shrabana Nandi}
+\cfoot{\thepage}
+
+\usepackage{xcolor}
+\definecolor{lightgray}{gray}{0.95}
+\definecolor{darkblue}{RGB}{30,60,120}
+
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=darkblue,
+  urlcolor=blue,
+  citecolor=darkblue
+}
+\usepackage{setspace}
+\onehalfspacing

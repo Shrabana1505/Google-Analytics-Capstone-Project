@@ -81,13 +81,19 @@ cyclistic-case-study/
 
 ## 🌐 View the Report Online
 
-If GitHub Pages is enabled, the HTML report will be available here:
 
 ```
 [https://Shrabana1505.github.io/cyclistic-case-study/Report.html](https://Shrabana1505.github.io/Google-Analytics-Capstone-Project/report/Report.html
 )
 ```
 
+## 🌐 View the Notebook Online
+
+
+```
+[https://Shrabana1505.github.io/cyclistic-case-study/notebook.html](https://Shrabana1505.github.io/Google-Analytics-Capstone-Project/notebook/notebook.html
+)
+```
 
 
 ---

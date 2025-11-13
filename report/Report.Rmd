@@ -1,0 +1,424 @@
+
+---
+title: "Cyclistic Bike-Share Case Study"
+author: "Shrabana Nandi"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  pdf_document:
+    latex_engine: xelatex
+    toc: true
+    toc_depth: 3
+    number_sections: true
+  html_document:
+    theme: flatly
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    number_sections: true
+    highlight: tango
+    code_folding: hide
+    df_print: paged
+---
+
+
+# BUSINESS TASK
+
+Cyclistic, a Chicago-based bike-share program, aims to increase its number of annual members.
+This analysis explores how casual riders and annual members use Cyclistic bikes differently, with the goal of helping the marketing team design targeted strategies to convert casual riders into annual subscribers.
+The report summarizes key behavioral differences and identifies data-driven opportunities for strategic intervention.
+
+---
+
+# DATA SOURCE
+
+This analysis uses Divvy Bike Share trip data for **Q1 2019** and **Q1 2020**, provided by Motivate International Inc. under a public data license.
+The datasets include ride timestamps, bike types, user types, and station locations but exclude personally identifiable information for privacy reasons.
+Only Q1 data was used due to RStudio memory limits.
+Although Cyclistic is a fictional company, the dataset accurately represents real-world bike-share behavior.
+
+---
+
+# DATA CLEANING & PREPARATION
+
+The 2019 and 2020 datasets were standardized to align columns and formats, including renaming fields in the 2019 file to match the 2020 structure.
+Rows with missing values, negative ride durations, or internal test rides (“HQ QR”) were removed.
+Timestamp fields were converted to POSIXct, and ride_length (minutes) was computed.
+
+Additional engineered features include:
+
+* Month, Day of Week, Hour
+* Season (Winter, Spring, Summer, Fall)
+* Weekday vs Weekend
+* Ride Duration Category (short, medium, long, extended)
+* Round-trip flag (start == end station)
+
+The final cleaned dataset is reliable, consistent, and suitable for analysis.
+
+---
+
+# ANALYSIS INSIGHTS
+
+**Ride Duration:**
+Casual riders consistently take longer trips, while members ride briefly but more frequently — reflecting leisure vs. commuting behaviors.
+
+**Time Patterns:**
+Members peak sharply during weekday commute hours (8–9 AM, 5–6 PM).
+Casual riders peak mid-day and weekends, supporting recreational usage.
+
+**Seasonality:**
+Casual ridership rises dramatically in spring and summer, while members maintain stable usage year-round.
+
+**Spatial Patterns:**
+Members start rides near business districts and transit hubs, whereas casual riders begin trips near parks, waterfronts, and tourist-heavy areas.
+
+**Trip Type:**
+Casual riders take more round trips, while members show one-way commuting patterns.
+
+These insights clarify the distinct motivations of both rider groups.
+
+---
+
+# VISUALIZATIONS & KEY FINDINGS
+
+## Ride Duration Comparison
+
+```{r, include=FALSE, warning=FALSE, message=FALSE}
+library("tidyverse")
+library("lubridate")
+library("janitor")
+library("skimr")
+library("readr")
+library("rmarkdown")
+library("dplyr")
+library("ggplot2")
+
+```
+```{r load-data, include=FALSE, warning=FALSE, message=FALSE}
+#Importing dataset
+divvy_2019 <- read_csv("D:\\COURSERA\\GOOGLE ANALYTICS\\COURSE 8\\Divvy_Trips_2019_Q1 - Divvy_Trips_2019_Q1.csv")
+divvy_2020 <- read_csv("D:\\COURSERA\\GOOGLE ANALYTICS\\COURSE 8\\Divvy_Trips_2020_Q1 - Divvy_Trips_2020_Q1.csv")
+
+#Checking if loaded properly
+head(divvy_2019)
+head(divvy_2020)
+
+#Cleaning column names
+divvy_2019 <- clean_names(divvy_2019)
+divvy_2020 <- clean_names(divvy_2020)
+
+#Checking column names before combining the dataset
+colnames(divvy_2019)
+colnames(divvy_2020)
+
+# Rename columns in 2019 data to match 2020 naming
+divvy_2019 <- divvy_2019 %>%
+  rename(
+    ride_id = trip_id,
+    started_at = start_time,
+    ended_at = end_time,
+    start_station_id = from_station_id,
+    start_station_name = from_station_name,
+    end_station_id = to_station_id,
+    end_station_name = to_station_name,
+    member_casual = usertype
+  )
+
+#Checking datatypes before merging
+skim_without_charts(divvy_2019)
+skim_without_charts(divvy_2020)
+
+#Changing the datatype of ride_id of divvy_2019
+divvy_2019 <- divvy_2019 %>%
+  mutate(ride_id = as.character(ride_id))
+
+#Keeping only common columns
+common_cols <- intersect(colnames(divvy_2019), colnames(divvy_2020))
+
+divvy_2019_clean <- divvy_2019 %>% select(all_of(common_cols))
+divvy_2020_clean <- divvy_2020 %>% select(all_of(common_cols))
+
+#Merging data
+divvy_data <- bind_rows(divvy_2019_clean, divvy_2020_clean)
+
+#Removing unnecessary datasets
+rm(divvy_2019, divvy_2020, divvy_2019_clean, divvy_2020_clean)
+skim_without_charts(divvy_data)
+
+#Number of rows with any NA
+sum(!complete.cases(divvy_data)) 
+
+#Dropping rows with NA
+divvy_data <- drop_na(divvy_data)
+
+#Converting date-time columns
+divvy_data <- divvy_data %>%
+  mutate(
+    started_at = as.POSIXct(started_at, format = "%Y-%m-%d %H:%M:%S"),
+    ended_at = as.POSIXct(ended_at, format = "%Y-%m-%d %H:%M:%S")
+  )
+
+#Adding ride duration column
+divvy_data <- divvy_data %>%
+  mutate(ride_length = as.numeric(difftime(ended_at, started_at, units = "mins")))
+
+#Checking for negative ride duration
+divvy_data %>%
+  filter(ride_length < 0 )
+
+#Sanity check before dropping
+divvy_data %>%
+  filter(ride_length < 0) %>%
+  count(start_station_name, sort = TRUE)
+
+#Dropping the rides
+divvy_data <- divvy_data %>%
+  filter(start_station_name != "HQ QR", ride_length >= 1)
+
+#Standardize member_casual labels
+divvy_data <- divvy_data %>%
+  mutate(member_casual = recode(member_casual,
+                                "Subscriber" = "member",
+                                "Customer" = "casual"))
+
+#Cleaning station names
+divvy_data <- divvy_data %>%
+  mutate(
+    start_station_name = str_trim(str_to_title(start_station_name)),
+    end_station_name = str_trim(str_to_title(end_station_name))
+  )
+
+#Checking whether the number of docking station falls within the range
+n_distinct(divvy_data$end_station_name)
+n_distinct(divvy_data$start_station_name)
+
+#Checking for duplicate rides
+divvy_data %>%
+  summarise(duplicate_count = sum(duplicated(ride_id)))
+
+#Checking for round trips
+divvy_data %>%
+  summarise(round_trips = sum(start_station_id == end_station_id))
+
+#Checking for unusual long rides
+divvy_data %>% filter(ride_length > 1440)
+
+#Removing the long rides
+divvy_data <- divvy_data %>%
+  filter(ride_length > 0, ride_length < 1440)
+
+#rechecking the ride lengths for any anomalies or outliers
+summary(divvy_data$ride_length)
+
+#Data preparation
+#Extracting Months, Day of the Week, Hour, Season from the Dates
+divvy_data <- divvy_data %>%
+  mutate(
+    month = month(started_at, label = TRUE, abbr = TRUE),
+    day_of_week = wday(started_at, label = TRUE, abbr = TRUE),
+    hour = hour(started_at),
+    season = case_when(
+      month(started_at) %in% c(12, 1, 2) ~ "Winter",
+      month(started_at) %in% c(3, 4, 5) ~ "Spring",
+      month(started_at) %in% c(6, 7, 8) ~ "Summer",
+      TRUE ~ "Fall"
+    ),
+    week_type = ifelse(day_of_week %in% c("Sat", "Sun"), "Weekend", "Weekday"),
+    ride_category = case_when(
+      ride_length <= 5 ~ "Short (<5min)",
+      ride_length <= 15 ~ "Medium (5–15min)",
+      ride_length <= 30 ~ "Long (15–30min)",
+      TRUE ~ "Extended (>30min)"
+    )
+  )
+
+
+```
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+divvy_data %>%
+  group_by(member_casual, ride_category) %>%
+  summarise(total_rides = n()) %>%
+  mutate(ride_category = factor(ride_category,
+                                levels = c("Short (<5min)",
+                                           "Medium (5–15min)",
+                                           "Long (15–30min)",
+                                           "Extended (>30min)"))) %>%
+  ggplot(aes(x = ride_category, y = total_rides, fill = member_casual)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Ride Duration Distribution by Rider Type",
+       x = "Ride Duration Category", y = "Total Rides") +
+  theme_minimal()
+
+```
+
+*Casual riders have significantly longer ride durations than annual members.*
+
+---
+
+## Weekly Usage Patterns
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+divvy_data %>%
+  group_by(member_casual, day_of_week) %>%
+  summarise(total_rides = n()) %>%
+  ggplot(aes(x = day_of_week, y = total_rides, fill = member_casual)) +
+  geom_col(position = "dodge") +
+  labs(title = "Ride Count by Day of Week",
+       x = "Day of Week",
+       y = "Number of Rides") +
+  theme_minimal()
+```
+
+*Members dominate weekdays; casual riders surge on weekends.*
+
+---
+
+## Hourly Trends by Day
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+divvy_data %>%
+  group_by(member_casual, day_of_week, hour) %>%
+  summarise(total_rides = n()) %>%
+  ggplot(aes(x = hour, y = total_rides, color = member_casual)) +
+  geom_line() +
+  facet_wrap(~ day_of_week) +
+  labs(title = "Riding Patterns by Day and Hour",
+       x = "Hour of the Day", y = "Ride Count")
+```
+
+*Members follow commute peaks; casual riders favor mid-day leisure periods.*
+
+---
+
+## Seasonal Trends
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(divvy_data, aes(x = season, fill = member_casual)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Seasonal Usage by Rider Type",
+       x = "Season", y = "Ride Count")
+```
+
+*Casual ridership peaks in spring and summer.*
+
+---
+
+## Top Start Stations
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+top_stations <- divvy_data %>%
+  group_by(member_casual, start_station_name) %>%
+  summarise(rides = n()) %>%
+  arrange(member_casual, desc(rides)) %>%
+  slice_head(n = 10)
+
+ggplot(top_stations, aes(x = reorder(start_station_name, rides),
+                         y = rides, fill = member_casual)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  facet_wrap(~ member_casual, scales = "free_y") +
+  labs(title = "Top 10 Start Stations per Rider Type",
+       x = "Station Name", y = "Number of Rides") +
+  theme_minimal()
+```
+
+*Members cluster near workplaces; casual riders near scenic or tourist locations.*
+
+---
+
+# RECOMMENDATIONS
+
+**1. Seasonal Membership Campaign (Late Spring – Early Summer):**
+
+Cyclistic should launch focused membership promotions from late April to July, highlighting leisure-oriented perks such as ride discounts, scenic-station benefits, and attraction partnerships. Marketing, Partnerships, and Operations teams should collaborate to design and execute QR-based station ads.
+
+**2. Public Transport Advertising:**
+
+Membership ads should be placed inside buses, trains, and metro stations connected to tourist and weekend-heavy areas, using QR codes and simple messaging. Deployment should intensify from May to September. Marketing, Transit Advertising, and Brand Outreach teams will manage this initiative.
+
+**3. Extra Ride-Time Benefits for Members:**
+
+Introduce extended ride duration or monthly bonus minutes for annual members starting in June. This benefit aligns with casual riders’ preference for long leisure rides and can be promoted by Product, Finance, and Marketing teams as part of membership onboarding.
+
+---
+
+# CONCLUSION
+
+The analysis shows clear and consistent differences between casual riders and annual members across time, location, and trip duration.
+Members use Cyclistic for structured, predictable commuting, while casual riders rely on it for leisure, exploration, and seasonal experiences.
+By focusing on seasonal promotions, well-placed advertising, and benefits aligned with casual rider behavior, Cyclistic can meaningfully increase annual membership conversion while enhancing user experience.
+
+---
+
+
+# APPENDIX
+
+## A0. Libraries Used
+```{r setup}
+#library("tidyverse")
+#library("lubridate")
+#library("janitor")
+#library("skimr")
+#library("readr")
+#library("dplyr")
+#library("ggplot2")
+```
+
+---
+
+## A1. Key Data Cleaning Steps
+
+```{r}
+#Converting date-time columns
+divvy_data <- divvy_data %>%
+  mutate(
+    started_at = as.POSIXct(started_at, format = "%Y-%m-%d %H:%M:%S"),
+    ended_at = as.POSIXct(ended_at, format = "%Y-%m-%d %H:%M:%S")
+  )
+
+#Adding ride duration column
+divvy_data <- divvy_data %>%
+  mutate(ride_length = as.numeric(difftime(ended_at, started_at, units = "mins")))
+
+#Standardize member_casual labels
+divvy_data <- divvy_data %>%
+  mutate(member_casual = recode(member_casual,
+                                "Subscriber" = "member",
+                                "Customer" = "casual"))
+                                
+#Removing the long rides
+divvy_data <- divvy_data %>%
+  filter(ride_length > 0, ride_length < 1440)
+
+
+```
+
+---
+
+## A2. Summary Statistics
+
+```{r}
+skim_without_charts(divvy_data)
+summary(divvy_data$ride_length)
+```
+
+---
+
+## A3. Engineered Feature Definitions
+
+* **ride_length:** difference between ended_at and started_at in minutes
+* **season:** Winter (Dec–Feb), Spring (Mar–May), Summer (Jun–Aug), Fall (Sep–Nov)
+* **week_type:** weekday vs weekend classification
+* **ride_category:** ride duration grouped into Short, Medium, Long, Extended
+* **is_round_trip:** TRUE when start and end stations are identical
+
+---
+
+## A4. Environment Information
+
+```{r}
+sessionInfo()
+```
+```

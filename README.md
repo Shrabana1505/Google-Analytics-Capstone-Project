@@ -84,7 +84,8 @@ cyclistic-case-study/
 If GitHub Pages is enabled, the HTML report will be available here:
 
 ```
-https://Shrabana1505.github.io/cyclistic-case-study/Report.html
+[https://Shrabana1505.github.io/cyclistic-case-study/Report.html](https://Shrabana1505.github.io/Google-Analytics-Capstone-Project/report/Report.html
+)
 ```
 
 

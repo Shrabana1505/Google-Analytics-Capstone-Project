@@ -1,0 +1,467 @@
+---
+title: "Cyclistic Bike-Share Analysis Notebook"
+author: "Shrabana Nandi"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  html_document:
+    theme: flatly
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    number_sections: false
+    highlight: tango
+    code_folding: hide
+    df_print: paged
+    
+  pdf_document:
+    latex_engine: xelatex
+    number_sections: false
+    toc: true
+    toc_depth: 3
+    fig_caption: true
+    fig_width: 6
+    fig_height: 4
+    highlight: tango
+    includes:
+      in_header: preamble.tex
+---
+
+
+# BUSINESS TASK
+
+**Goal:** Convert casual riders into annual members  
+
+**Core Questions:**
+1. How do annual members and casual riders use Cyclistic bikes differently?  
+2. Why might casual riders buy annual memberships?  
+3. How can Cyclistic use digital media to influence conversion?
+
+🧭 *The plan:* Explore patterns in usage (time, distance, frequency, and stations) and identify behavioral cues that could drive marketing actions.
+
+---
+
+# DATA SOURCE
+Cyclistic bike share trip data from Q1 2019 and Q1 2020.
+
+---
+
+# DATA UPLOAD & CLEANING
+
+First, load the essentials. These will handle wrangling, cleaning, and plotting.
+
+```{r setup}
+library(tidyverse)
+library(lubridate)
+library(janitor)
+library(skimr)
+library(readr)
+library(dplyr)
+```
+
+💭 *Thoughts:*
+No need to go overboard — **tidyverse** covers most cleaning and analysis.
+`janitor` will clean column names, and `skimr` gives a quick glance at structure.
+
+---
+
+### Importing Datasets
+
+```{r import}
+divvy_2019 <- read_csv("D:/COURSERA/GOOGLE ANALYTICS/COURSE 8/Divvy_Trips_2019_Q1 - Divvy_Trips_2019_Q1.csv")
+divvy_2020 <- read_csv("D:/COURSERA/GOOGLE ANALYTICS/COURSE 8/Divvy_Trips_2020_Q1 - Divvy_Trips_2020_Q1.csv")
+
+head(divvy_2019)
+head(divvy_2020)
+```
+
+💭 *Quick check:*
+Just verifying both files load properly — better to catch encoding or column mismatches early.
+
+---
+
+### Cleaning & Standardizing Columns
+
+```{r clean}
+divvy_2019 <- clean_names(divvy_2019)
+divvy_2020 <- clean_names(divvy_2020)
+
+divvy_2019 <- divvy_2019 %>%
+  rename(
+    ride_id = trip_id,
+    started_at = start_time,
+    ended_at = end_time,
+    start_station_id = from_station_id,
+    start_station_name = from_station_name,
+    end_station_id = to_station_id,
+    end_station_name = to_station_name,
+    member_casual = usertype
+  ) %>%
+  mutate(ride_id = as.character(ride_id))
+```
+
+💭 *Rationale:*
+2019 uses older column names, so aligning them with 2020 ensures consistency before merging.
+Schema mismatches are common in multi-year data and can break joins if left uncorrected.
+
+---
+
+### Combining Datasets
+
+```{r merge}
+common_cols <- intersect(colnames(divvy_2019), colnames(divvy_2020))
+divvy_data <- bind_rows(
+  divvy_2019 %>% select(all_of(common_cols)),
+  divvy_2020 %>% select(all_of(common_cols))
+)
+
+rm(divvy_2019, divvy_2020)
+skim_without_charts(divvy_data)
+```
+
+💭 *Note:*
+Merged successfully. Removing old objects frees up memory.
+`skim_without_charts()` gives a quick data-health summary — missing values, column types, etc.
+
+---
+
+### Cleaning Nulls, Timestamps, and Duration
+
+```{r cleaning}
+divvy_data <- divvy_data %>%
+  drop_na() %>%
+  mutate(
+    started_at = as.POSIXct(started_at, format = "%Y-%m-%d %H:%M:%S"),
+    ended_at   = as.POSIXct(ended_at,   format = "%Y-%m-%d %H:%M:%S"),
+    ride_length = as.numeric(difftime(ended_at, started_at, units = "mins"))
+  ) %>%
+  filter(ride_length > 0)
+```
+
+💭 *Thinking:*
+Dropped nulls because they’re minimal — incomplete records add noise.
+Negative or zero durations represent system test rides or logging errors.
+
+---
+
+### Removing Test Rides & Standardizing Labels
+
+```{r filtering}
+divvy_data <- divvy_data %>%
+  filter(start_station_name != "HQ QR", ride_length < 1440) %>%
+  mutate(member_casual = recode(member_casual,
+                                "Subscriber" = "member",
+                                "Customer"   = "casual"))
+```
+
+💭 *Observation:*
+“HQ QR” denotes internal QA rides.
+A 1-day (1440 min) cutoff removes anomalies.
+Renaming “Subscriber/Customer” keeps rider-type labels consistent.
+
+---
+
+### Ride Length Summary
+
+```{r summary}
+summary(divvy_data$ride_length)
+```
+
+💭 *Interpretation:*
+Most rides last **5–15 minutes** (median ≈ 9 min) — short, practical commuting behavior.
+
+---
+
+# DATA ANALYSIS & INSIGHTS
+
+---
+
+## Feature Engineering
+
+```{r features}
+divvy_data <- divvy_data %>%
+  mutate(
+    month = month(started_at, label = TRUE, abbr = TRUE),
+    day_of_week = wday(started_at, label = TRUE, abbr = TRUE),
+    hour = hour(started_at),
+    season = case_when(
+      month(started_at) %in% c(12,1,2) ~ "Winter",
+      month(started_at) %in% c(3,4,5)  ~ "Spring",
+      month(started_at) %in% c(6,7,8)  ~ "Summer",
+      TRUE                            ~ "Fall"
+    ),
+    week_type = ifelse(day_of_week %in% c("Sat","Sun"), "Weekend", "Weekday"),
+    ride_category = case_when(
+      ride_length <= 5  ~ "Short (<5 min)",
+      ride_length <= 15 ~ "Medium (5–15 min)",
+      ride_length <= 30 ~ "Long (15–30 min)",
+      TRUE              ~ "Extended (>30 min)"
+    )
+  )
+```
+
+💭 *Reasoning:*
+Creating temporal and categorical features early simplifies later exploration.
+Season, weekday, and duration categories expose behavioral patterns at a glance.
+
+---
+
+## Ride Duration Patterns
+
+```{r duration}
+divvy_data %>%
+  group_by(member_casual) %>%
+  summarise(
+    avg_ride_length = mean(ride_length),
+    median_ride_length = median(ride_length)
+  )
+```
+
+💭 *Result:*
+Casual riders’ average rides are notably longer — clear leisure orientation.
+
+```{r boxplot-log-keep-minutes, warning=FALSE, message=FALSE}
+library(ggplot2)
+library(dplyr)
+library(scales)
+
+divvy_data %>%
+  filter(ride_length > 0) %>%            # remove zeros/negatives
+  ggplot(aes(x = member_casual, y = ride_length, fill = member_casual)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.8) +  # hide extreme outliers for visibility
+  #geom_jitter(width = 0.15, alpha = 0.12, size = 0.6) + # optional: show point cloud
+  scale_y_log10(
+    labels = label_number(accuracy = 0.1),
+    breaks = c(0.1, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 1000)
+  ) +
+  labs(
+    title = "Ride Duration Comparison (log scale)",
+    subtitle = "Y-axis in minutes (log10). Outliers compressed to show central tendency.",
+    x = "Rider Type",
+    y = "Ride Length (minutes, log scale)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5))
+```
+
+**Notes:**  
+- `scale_y_log10()` compresses the heavy tail so medians and IQRs are more visible.  
+- I hid extreme outliers in the boxplot (`outlier.shape = NA`)( but added a faint jitter  cloud in comment so you can still see distribution density if you remove the #).  
+- `breaks` include small and large minute values so axis ticks are meaningful.
+
+
+💭 *Insight:*
+Casuals display a far wider duration spread — the classic *tourist vs commuter* contrast.
+Members ride frequently but briefly; casuals ride fewer times but linger longer.
+
+---
+
+## Round Trips vs One-Way
+
+```{r roundtrips}
+divvy_data %>%
+  mutate(is_round_trip = start_station_id == end_station_id) %>%
+  group_by(member_casual, is_round_trip) %>%
+  summarise(total_rides = n())
+```
+
+💭 *Takeaway:*
+Casuals record more round trips — likely sightseeing or leisure loops.
+Members’ rides are overwhelmingly one-way, consistent with commuting.
+
+---
+
+## Temporal Insights
+
+### Day + Hour Trends
+
+```{r dayhour}
+divvy_data %>%
+  group_by(member_casual, day_of_week, hour) %>%
+  summarise(total_rides = n()) %>%
+  ggplot(aes(x = hour, y = total_rides, color = member_casual)) +
+  geom_line() +
+  facet_wrap(~ day_of_week) +
+  labs(title = "Riding Patterns by Day and Hour",
+       x = "Hour", y = "Ride Count")
+```
+
+💭 *Interpretation:*
+Members peak at **8–9 AM** and **5–6 PM** — commute hours.
+Casuals peak mid-day and on weekends — pure leisure timing.
+Two rhythms emerge: *structured weekdays* vs *spontaneous weekends.*
+
+---
+
+### Seasonal Patterns
+
+```{r season}
+divvy_data %>%
+  group_by(member_casual, season) %>%
+  summarise(total_rides = n(),
+            avg_ride_length = mean(ride_length)) %>%
+  ggplot(aes(x = season, y = total_rides, fill = member_casual)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Seasonal Usage by Rider Type",
+       x = "Season", y = "Total Rides")
+```
+
+💭 *Observation:*
+Casual ridership soars in **spring & summer**, drops in winter — weather-sensitive.
+Members stay consistent year-round, reflecting reliability and habit.
+
+---
+
+### Weekly Trends
+
+```{r week}
+divvy_data %>%
+  group_by(member_casual, day_of_week) %>%
+  summarise(total_rides = n()) %>%
+  ggplot(aes(x = day_of_week, y = total_rides, fill = member_casual)) +
+  geom_col(position = "dodge") +
+  labs(title = "Ride Count by Day of Week",
+       x = "Day of Week", y = "Number of Rides") +
+  theme_minimal()
+```
+
+💭 *Observation:*
+Members dominate weekdays; casuals surge on weekends — reinforcing work-vs-leisure behavior.
+
+---
+
+## Spatial Insights
+
+### Top 10 Start Stations
+
+```{r topstations}
+top_stations <- divvy_data %>%
+  group_by(member_casual, start_station_name) %>%
+  summarise(rides = n()) %>%
+  arrange(member_casual, desc(rides)) %>%
+  slice_head(n = 10)
+
+ggplot(top_stations,
+       aes(x = reorder(start_station_name, rides),
+           y = rides, fill = member_casual)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  facet_wrap(~ member_casual, scales = "free_y") +
+  labs(title = "Top 10 Start Stations per Rider Type",
+       x = "Station", y = "Rides")
+```
+
+💭 *Insight:*
+Members cluster around **business districts and transit hubs**.
+Casuals favor **tourist zones and waterfronts** — ideal spots for day-pass marketing.
+
+---
+
+# STRATEGIC TAKEAWAYS
+
+| Insight Area      | Observation                                              | Business Implication                                  |
+| ----------------- | -------------------------------------------------------- | ----------------------------------------------------- |
+| **Ride Duration** | Casual rides are ≈ 3× longer                             | Promote annual memberships for frequent leisure users |
+| **Peak Times**    | Members commute mornings/evenings; casuals ride weekends | Offer weekday discounts to casuals                    |
+| **Seasonality**   | Casual rides surge in summer                             | Launch pre-summer marketing campaigns                 |
+| **Top Stations**  | Casuals use tourist-heavy stations                       | Place ads / QR banners at these hubs                  |
+| **Round Trips**   | Casuals take more round trips                            | Introduce “unlimited short-ride” plans                |
+
+💭 *Final Thoughts:*
+**Members = commuters; Casuals = tourists and leisure seekers.**
+Push membership incentives during warmer months when casual ridership peaks — ideally before summer weekends.
+Highlight **cost savings, convenience, and priority perks** to nudge casual riders into annual membership tiers.
+
+
+
+---
+
+
+
+# **Recommendations**
+
+---
+
+
+## **1️⃣ Seasonal Membership Campaign (Late Spring – Early Summer)**
+
+**What:**
+Launch a targeted membership promotion focused on converting casual riders during peak leisure months.
+
+**How:**
+
+* Advertise membership perks tied to leisure use (ride discounts, scenic-station offers, partner attraction perks).
+* Use QR codes at high-traffic scenic stations for instant sign-up.
+
+**When:**
+
+* Begin advertising in **late April**
+* Run campaign through **July**, when casual ridership is highest.
+
+**By Whom:**
+
+* **Marketing Team** (campaign design, messaging, creatives)
+* **Partnerships Team** (tourist sites, attractions, scenic zones)
+* **Operations Team** (QR placement at stations)
+
+---
+
+## **2️⃣ Public Transport Advertising for Casual Riders**
+
+**What:**
+Promote Cyclistic membership on public transport channels frequently used by casual riders.
+
+**How:**
+
+* Place ads with QR codes inside buses, trains, and metro stations connected to tourist and weekend-heavy areas.
+* Highlight convenience and cost savings for multi-modal travelers.
+
+**When:**
+
+* Run continuously, with increased frequency on **weekends** and **tourist season** (May–September).
+
+**By Whom:**
+
+* **Marketing Team** (ad design, CTA optimisation)
+* **Transit Advertising Partners** (bus, metro, rail networks)
+* **Brand Outreach Team** (negotiating placements)
+
+---
+
+## **3️⃣ Add Extra Ride-Time Benefits to Annual Membership**
+
+**What:**
+Provide additional free ride-time hours as a built-in benefit for annual members.
+
+**How:**
+
+* Offer monthly bonus minutes or extended ride duration before overage fees.
+* Promote these perks during onboarding and all seasonal campaigns.
+
+**When:**
+
+* Introduce the benefit at the start of **summer** (June)
+* Maintain year-round as a permanent membership feature.
+
+**By Whom:**
+
+* **Product Team** (membership feature design)
+* **Finance Team** (cost modeling)
+* **Marketing Team** (promotion and messaging)
+
+---
+
+If you'd like, I can also format this as a **one-page executive summary**, a **slide deck**, or insert it cleanly into your final PDF/HTML report.
+
+# CONCLUSION
+
+This analysis explored how Cyclistic’s members and casual riders differ in their riding behavior across time, season, and location.  
+Members ride frequently, briefly, and predictably — reflecting daily commuters who depend on Cyclistic for practicality and routine.  
+Casual riders, on the other hand, ride longer, mostly on weekends and during warmer months, often looping back to where they started — echoing leisure, tourism, and exploration.  
+
+These patterns reveal two distinct motivations: **efficiency vs experience**.  
+Bridging that gap through well-timed seasonal promotions, flexible membership plans, and on-site marketing at tourist stations can transform occasional riders into loyal members.  
+

@@ -38,25 +38,6 @@ cyclistic-case-study/
 │   └── preamble.tex
 │
 └── README.md
-```
-
-```
-cyclistic-case-study/
-│
-├── report/
-│   ├── Report.Rmd
-│   ├── Report.html
-│   ├── Report.pdf
-│
-├── notebook/
-│   └── cyclistic_notebook.Rmd
-│
-├── assets/
-│   ├── style.css
-│   └── preamble.tex
-│
-└── README.md
-```
 
 ---
 
